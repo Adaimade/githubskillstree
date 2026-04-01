@@ -6,6 +6,7 @@ import collections
 import math
 import logging
 import time
+import threading
 from pathlib import Path
 
 app = Flask(__name__)
@@ -423,6 +424,30 @@ def _error_svg(msg: str) -> str:
         text-anchor="middle">{msg}</text>
 </svg>"""
 
+def _loading_svg(username: str) -> str:
+    return f"""<svg xmlns="http://www.w3.org/2000/svg" width="500" height="640" viewBox="0 0 500 640">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="50%" r="70%">
+      <stop offset="0%" stop-color="#0d1117"/>
+      <stop offset="100%" stop-color="#020409"/>
+    </radialGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="500" height="640" rx="14" fill="url(#bg)"/>
+  <rect width="500" height="640" rx="14" fill="none" stroke="#00ffcc" stroke-width="1" opacity="0.3"/>
+  <text x="250" y="290" fill="#00ffcc" font-size="18" font-family="'Courier New',monospace"
+        text-anchor="middle" font-weight="bold" letter-spacing="4" filter="url(#glow)">GITHUB SKILL TREE</text>
+  <text x="250" y="330" fill="#00ccff" font-size="13" font-family="'Courier New',monospace"
+        text-anchor="middle" filter="url(#glow)">@{username[:20]}</text>
+  <text x="250" y="365" fill="#475569" font-size="11" font-family="'Courier New',monospace"
+        text-anchor="middle">Analyzing repositories...</text>
+  <text x="250" y="395" fill="#1e3a2f" font-size="10" font-family="monospace"
+        text-anchor="middle">Refresh in a few seconds</text>
+</svg>"""
+
 # ─────────────────────────────────────────
 # Flask Routes
 # ─────────────────────────────────────────
@@ -441,17 +466,30 @@ def index():
     </body></html>
     """
 
+def _fetch_bg(username):
+    """Fetch data in background and store to cache."""
+    try:
+        get_skill_tree_data(username)
+    except Exception:
+        pass
+
 @app.route("/api/skill-tree")
 def skill_tree():
     username = request.args.get("username", "").strip()
     if not username:
         return Response(_error_svg("?username= required"), mimetype="image/svg+xml")
 
-    data = get_skill_tree_data(username)
-    svg  = render_skill_tree_svg(data)
+    cached = _CACHE.get(username)
+    if cached and (time.time() - cached[0]) < _CACHE_TTL:
+        # Cache hit — respond instantly
+        svg = render_skill_tree_svg(cached[1])
+    else:
+        # No cache — return loading SVG immediately, fetch in background
+        threading.Thread(target=_fetch_bg, args=(username,), daemon=True).start()
+        svg = _loading_svg(username)
 
     resp = Response(svg.encode("utf-8"), mimetype="image/svg+xml")
-    resp.headers["Cache-Control"] = "public, max-age=1800"
+    resp.headers["Cache-Control"] = "no-cache"
     resp.headers["Content-Type"] = "image/svg+xml"
     resp.headers["X-Content-Type-Options"] = "nosniff"
     return resp
