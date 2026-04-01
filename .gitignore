@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.env
+venv/
+.venv/
+# 暫存預覽檔
+preview.html
+preview_card.png
+preview_card.svg
+preview_card_2x.png
+card_test.svg
+server.log
