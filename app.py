@@ -368,12 +368,10 @@ def render_skill_tree_svg(data: dict) -> str:
 
     svg = f"""<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}">
   <defs>
-    <!-- 星空背景漸層 -->
     <radialGradient id="bg" cx="50%" cy="50%" r="70%">
       <stop offset="0%"   stop-color="#0d1117"/>
       <stop offset="100%" stop-color="#020409"/>
     </radialGradient>
-    <!-- 霓虹發光 filter -->
     <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
       <feGaussianBlur stdDeviation="3" result="blur"/>
       <feMerge>
@@ -381,7 +379,6 @@ def render_skill_tree_svg(data: dict) -> str:
         <feMergeNode in="SourceGraphic"/>
       </feMerge>
     </filter>
-    <!-- 強發光 -->
     <filter id="glow2" x="-80%" y="-80%" width="260%" height="260%">
       <feGaussianBlur stdDeviation="6" result="blur"/>
       <feMerge>
@@ -390,30 +387,15 @@ def render_skill_tree_svg(data: dict) -> str:
       </feMerge>
     </filter>
   </defs>
-
-  <!-- 背景 -->
   <rect width="{W}" height="{H}" rx="14" fill="url(#bg)"/>
-  <!-- 星空 -->
   {stars_svg}
-  <!-- 外框 -->
   <rect width="{W}" height="{H}" rx="14" fill="none"
         stroke="#00ffcc" stroke-width="1" opacity="0.3" filter="url(#glow)"/>
-
-  <!-- 連線層 -->
   {lines_svg}
-  <!-- 粒子層 -->
   {particles_svg}
-
-  <!-- 標題 -->
   {title_svg}
-
-  <!-- 中心節點 -->
   {center_node}
-
-  <!-- 技能節點 -->
   {nodes_svg}
-
-  <!-- 圖例 -->
   {legend_svg}
 </svg>"""
 
@@ -453,8 +435,10 @@ def skill_tree():
     data = get_skill_tree_data(username)
     svg  = render_skill_tree_svg(data)
 
-    resp = Response(svg, mimetype="image/svg+xml")
-    resp.headers["Cache-Control"] = "public, max-age=1800"   # 快取 30 分鐘
+    resp = Response(svg.encode("utf-8"), mimetype="image/svg+xml")
+    resp.headers["Cache-Control"] = "public, max-age=1800"
+    resp.headers["Content-Type"] = "image/svg+xml"
+    resp.headers["X-Content-Type-Options"] = "nosniff"
     return resp
 
 @app.route("/api/data")
