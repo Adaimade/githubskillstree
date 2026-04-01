@@ -5,9 +5,14 @@ import json
 import collections
 import math
 import logging
+import time
 from pathlib import Path
 
 app = Flask(__name__)
+
+# In-memory cache: username -> (timestamp, data)
+_CACHE = {}
+_CACHE_TTL = 1800  # 30 min
 
 gunicorn_logger = logging.getLogger('gunicorn.error')
 app.logger.handlers = gunicorn_logger.handlers
@@ -129,9 +134,9 @@ def detect_skills_from_repos(repos, username="", headers=None):
         if stars > 0 and lang and lang in SKILL_MAP:
             skill_counts[SKILL_MAP[lang]] += min(stars, 5)
 
-    # 從前 5 個倉庫深度掃描依賴文件
+    # 從前 3 個倉庫深度掃描依賴文件
     if username and headers:
-        for repo in repos[:5]:
+        for repo in repos[:3]:
             extra = detect_skills_from_repo_detail(username, repo["name"], headers)
             for s in extra:
                 skill_counts[s] += 1
@@ -139,17 +144,22 @@ def detect_skills_from_repos(repos, username="", headers=None):
     return skill_counts
 
 def get_skill_tree_data(username: str):
+    # Return cached result if fresh
+    cached = _CACHE.get(username)
+    if cached and (time.time() - cached[0]) < _CACHE_TTL:
+        return cached[1]
+
     headers = gh_headers()
     try:
         # 用戶基本資料
-        ur = requests.get(f"{GITHUB_API}/users/{username}", headers=headers, timeout=6)
+        ur = requests.get(f"{GITHUB_API}/users/{username}", headers=headers, timeout=4)
         ur.raise_for_status()
         ud = ur.json()
 
         # 取得倉庫
         rr = requests.get(
             f"{GITHUB_API}/users/{username}/repos",
-            headers=headers, params={"per_page": 100, "sort": "pushed"}, timeout=6
+            headers=headers, params={"per_page": 50, "sort": "pushed"}, timeout=4
         )
         rr.raise_for_status()
         repos = rr.json()
@@ -186,7 +196,7 @@ def get_skill_tree_data(username: str):
                 lang_counts[lang] += 1
         top_langs = sorted(lang_counts.items(), key=lambda x: x[1], reverse=True)[:4]
 
-        return {
+        result = {
             "username":    username,
             "avatar_url":  ud.get("avatar_url", ""),
             "name":        ud.get("name") or username,
@@ -199,8 +209,13 @@ def get_skill_tree_data(username: str):
             "top_langs":   top_langs,
             "skill_count": len(top_skills),
         }
+        _CACHE[username] = (time.time(), result)
+        return result
     except Exception as e:
         app.logger.error(f"Error: {e}")
+        # Return stale cache on error rather than None
+        if cached:
+            return cached[1]
         return None
 
 # ─────────────────────────────────────────
