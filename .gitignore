@@ -3,6 +3,7 @@ __pycache__/
 .env
 venv/
 .venv/
+.claude/
 # 暫存預覽檔
 preview.html
 preview_card.png
