@@ -4,16 +4,16 @@ import random
 
 from skills_config import LANG_COLOR, PALETTE
 
-# Canvas
-W, H = 500, 640
-CX, CY = W // 2, 300
+# Canvas (landscape)
+W, H = 800, 400
+CX, CY = W // 2, 215
 
-# Layout
-R_INNER = 145   # current skills ring radius
-R_OUTER = 250   # recommended skills ring radius
-R_CENTER = 52   # user center node
-R_SKILL = 30    # current skill node
-R_REC = 22      # recommended node
+# Layout — ellipse rings stretch horizontally to fill landscape canvas
+RX_INNER, RY_INNER = 175, 100   # current skills ring
+RX_OUTER, RY_OUTER = 290, 135   # recommended ring
+R_CENTER = 48   # user center node
+R_SKILL = 27    # current skill node
+R_REC = 21      # recommended node
 
 REC_COLOR = "#39ff14"
 ACCENT = "#00ffcc"
@@ -75,15 +75,15 @@ def _particles(x1: float, y1: float, x2: float, y2: float, color: str, seed: str
     return "".join(out)
 
 
-def _ring_positions(count: int, radius: int, angle_offset: int = -90) -> list:
-    """Return [(x, y), ...] evenly distributed around (CX, CY)."""
+def _ring_positions(count: int, rx: int, ry: int, angle_offset: int = -90) -> list:
+    """Return [(x, y), ...] evenly distributed on ellipse around (CX, CY)."""
     if count == 0:
         return []
     positions = []
     for i in range(count):
         angle = math.radians(360 / count * i + angle_offset)
-        x = CX + radius * math.cos(angle)
-        y = CY + radius * math.sin(angle)
+        x = CX + rx * math.cos(angle)
+        y = CY + ry * math.sin(angle)
         positions.append((x, y))
     return positions
 
@@ -110,9 +110,9 @@ def _center_node(username: str, repos: int, followers: int) -> str:
         f'<g>'
         f'<circle cx="{CX}" cy="{CY}" r="{R_CENTER}" fill="#0a0f1e" '
         f'stroke="{ACCENT}" stroke-width="2.5" filter="url(#glow)"/>'
-        f'<circle cx="{CX}" cy="{CY}" r="44" fill="none" '
+        f'<circle cx="{CX}" cy="{CY}" r="40" fill="none" '
         f'stroke="{ACCENT}" stroke-width="0.8" opacity="0.4"/>'
-        f'<circle cx="{CX}" cy="{CY}" r="36" fill="none" '
+        f'<circle cx="{CX}" cy="{CY}" r="32" fill="none" '
         f'stroke="{ACCENT}" stroke-width="0.4" opacity="0.2"/>'
         f'<text x="{CX}" y="{CY-8}" fill="{ACCENT}" font-size="12" '
         f'font-family="\'Courier New\',monospace" text-anchor="middle" '
@@ -171,8 +171,8 @@ def render_card(data: dict) -> str:
     recs = data["recommended"][:5]
     username = data["username"]
 
-    inner = _ring_positions(len(skills), R_INNER, angle_offset=-90)
-    outer = _ring_positions(len(recs), R_OUTER, angle_offset=-60)
+    inner = _ring_positions(len(skills), RX_INNER, RY_INNER, angle_offset=-90)
+    outer = _ring_positions(len(recs), RX_OUTER, RY_OUTER, angle_offset=-70)
 
     parts = [_stars(username)]
 
@@ -205,16 +205,16 @@ def render_card(data: dict) -> str:
 def render_loading(username: str) -> str:
     """Shown on cold cache while background fetch runs."""
     body = (
-        f'<text x="{W//2}" y="290" fill="{ACCENT}" font-size="18" '
+        f'<text x="{W//2}" y="160" fill="{ACCENT}" font-size="18" '
         f'font-family="\'Courier New\',monospace" text-anchor="middle" '
         f'font-weight="bold" letter-spacing="4" filter="url(#glow)">GITHUB SKILL TREE</text>'
-        f'<text x="{W//2}" y="330" fill="{SECONDARY}" font-size="13" '
+        f'<text x="{W//2}" y="200" fill="{SECONDARY}" font-size="13" '
         f'font-family="\'Courier New\',monospace" text-anchor="middle" '
         f'filter="url(#glow)">@{username[:20]}</text>'
-        f'<text x="{W//2}" y="365" fill="#475569" font-size="11" '
+        f'<text x="{W//2}" y="235" fill="#475569" font-size="11" '
         f'font-family="\'Courier New\',monospace" text-anchor="middle">'
         f'Analyzing repositories...</text>'
-        f'<text x="{W//2}" y="395" fill="#1e3a2f" font-size="10" '
+        f'<text x="{W//2}" y="265" fill="#1e3a2f" font-size="10" '
         f'font-family="monospace" text-anchor="middle">Refresh in a few seconds</text>'
     )
     return _frame(body)
