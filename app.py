@@ -1,6 +1,11 @@
 from flask import Flask, Response, render_template, request
 import requests
 import os
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 import json
 import collections
 import math
@@ -505,5 +510,8 @@ def api_data():
         return {"error": "user not found"}, 404
     return data
 
+
+
 if __name__ == "__main__":
-    app.run(debug=False, port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(debug=False, port=port)
